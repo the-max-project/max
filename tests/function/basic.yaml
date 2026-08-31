@@ -1,0 +1,16 @@
+# test_batch.yaml
+config:
+  ws_url: "wss://localhost:8443/ws"
+  username: "Margaret.Miller"
+
+tests:
+  - audio_file: "what_time_is_it.wav"
+    expected_text: "what time is it"
+  - audio_file: "when_is_lunch.wav"
+    expected_text: "when is lunch"
+  - audio_file: "who_is_arthur.wav"
+    expected_text: "who is arthur"
+  - audio_file: "my_grandfather.wav"
+    expected_text: "my grandfather"
+  - audio_file: "when_was_he_born.wav"
+    expected_text: "when was he born"
