@@ -8,3 +8,4 @@ proxy/dist/
 node_modules/
 *:Zone.Identifier
 digest.txt
+__pycache__/
