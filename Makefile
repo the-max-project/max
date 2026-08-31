@@ -50,6 +50,9 @@ echo:
 shared:
 	$(SHARED_COMPOSE) up -d --no-recreate
 
+shared-build:
+	$(SHARED_COMPOSE) up --build --detach
+
 shared-down:
 	$(SHARED_COMPOSE) down
 
