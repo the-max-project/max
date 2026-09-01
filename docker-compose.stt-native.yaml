@@ -1,0 +1,25 @@
+# Dev-only override, active when STT_MODE=native in .env.dev (see Makefile's
+# DEV_STT_NATIVE detection and doc/dev-mac/LargeSttDelayPlan.md, Option 2).
+#
+# STT runs natively on macOS (outside Docker) via MLX/Metal for GPU-accelerated
+# transcription -- Docker Desktop's Linux VM has no path to the Mac's GPU, so
+# the containerized `stt` service is gated off here and the other services'
+# depends_on lists are trimmed to match. Start it with `make stt-native`.
+services:
+  stt:
+    profiles: ["container-stt"]   # only starts if container-stt is in COMPOSE_PROFILES
+
+  # depends_on lists are unioned (not replaced) across -f files, so simply
+  # re-listing a shorter dependency list here does NOT drop `stt` -- it has to
+  # be marked not-required explicitly instead.
+  assistant:
+    depends_on:
+      stt:
+        condition: service_started
+        required: false            # stt is native, not compose-managed, when this file is active
+
+  proxy:
+    depends_on:
+      stt:
+        condition: service_started
+        required: false            # stt is native, not compose-managed, when this file is active

@@ -38,7 +38,7 @@ def get_audio_bytes(input_file):
 import time  # Make sure 'time' is imported at the top of your file
 
 
-async def run_single_test(websocket, username, audio_file_path, expected_text, timeout=15):
+async def run_single_test(websocket, username, audio_file_path, expected_text, timeout=60):
     print(f"\n--- Running Test: {audio_file_path} ---")
 
     found_expected = False

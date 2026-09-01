@@ -2,8 +2,8 @@
 
 ## Purpose
 
-The MAX project is designed to provide a voice-based AI agent specifically tailored for seniors with dementia. 
-This agent aims to maximize their quality of life by encouraging and supporting interactions with family and friends, 
+The MAX project is designed to provide a voice-based AI agent specifically tailored for seniors with dementia.
+This agent aims to maximize their quality of life by encouraging and supporting interactions with family and friends,
 and helping to make technology more accessible.
 
 The project is designed to be run on local HW and configured/managed by a trusted family member or caregiver.
@@ -12,17 +12,18 @@ A key goal is to allow the family member to spend more time visiting as family a
 ## Key Features
 
 Max:
+
 * has personalized knowledge of family and friends to help the senior stay connected
 * has knowledge of the daily itinerary and upcoming appointments
 * can both answer questions and prompt the senior with reminders or suggestions throughout the day
 * can take notes and reminders from the senior and incorporate them into the daily itinerary
-* can manage a smart TV and help play media from a curated playlist 
+* can manage a smart TV and help play media from a curated playlist
 
 For the primary caregiver (typically a family member) Max:
+
 * can be configured with appropriate guidelines and reminders for the senior
 * can send daily summaries of the senior's activities to the caregiver
 * can take feedback to improve the agent's interactions with the senior
-
 
 # Technical Overview: Multi-Service AI Application Stack
 
@@ -40,8 +41,8 @@ inference.
 - [Setup](#setup)
 - [Configuration](#configuration)
 - [Running the Application](#Running-the-Application)
-    - [Development](#development-mode)
-    - [Production](#production-mode)
+  - [Development](#development-mode)
+  - [Production](#production-mode)
 - [NVIDA GPU Support](#NVIDA-GPU-Support)
 
 ---
@@ -51,42 +52,51 @@ inference.
 The Max Project is composed of the following services:
 
 **1. Proxy & Web Server Service**
-* **Summary:** 
-Acts as the single entry point for all incoming traffic, handling SSL termination and routing requests to the appropriate backend services.
-Provides the user interface by serving a static single-page application that acts as the client for the real-time transcription service.
+
+* **Summary:**
+  Acts as the single entry point for all incoming traffic, handling SSL termination and routing requests to the appropriate backend services.
+  Provides the user interface by serving a static single-page application that acts as the client for the real-time transcription service.
 * **Tech Stack:** NGINX, Python, FastAPI, and Uvicorn.
 
 **2. STT (Speech-to-Text) Service**
+
 * **Summary:** The core engine that performs real-time audio transcription over a WebSocket connection.
 * **Tech Stack:** Python, FastAPI, Uvicorn, `faster-whisper`, and NumPy. It is configured to leverage NVIDIA GPU acceleration but can fall back to CPU.
 
 **3. Assistant Service**
+
 * **Summary:** The core "brain" or AI agent responsible for handling complex queries, executing reasoning loops, calling tools (like Gmail and Neo4j), and acting as the main backend logic.
 * **Tech Stack:** Python, FastAPI, Uvicorn, LangChain, LangGraph, Pydantic, Neo4j Python driver, and Google Auth/API Clients.
 
 **4. TTS (Text-to-Speech) Service**
+
 * **Summary:** Synthesizes the LLM's text responses back into audio.
 * **Tech Stack:** Containerized service exposing an endpoint and configured with specific voice models (e.g., `en_US-lessac-medium`).
 
 **5. Ollama Service**
+
 * **Summary:** Provides the core Large Language Model (LLM) capabilities that are utilized by the Assistant service.
-* **Tech Stack:** 
+* **Tech Stack:**
   * Ubuntu/WSL: Ollama engine with NVIDIA GPU acceleration, hosting models such as `llama3.1:8b-instruct-q4_K_M`.
   * macOS: Ollama installed as local application
 
 **6. Neo4j Database Service**
+
 * **Summary:** A graph database responsible for persisting user profiles, family trees, schedules, and application relationships.
 * **Tech Stack:** Neo4j graph database with the APOC plugin and Cypher query language.
 
 **7. Proxy Service**
+
 * **Summary:** Acts as the single entry point for all incoming traffic, handling SSL termination and routing requests to the appropriate backend services.
 * **Tech Stack:** NGINX. The frontend assets are built using Node.js and Vite.
 
 **7. Roku TV Service (Under Development)**
+
 * **Summary:** Provides a wrapper to ROKU ECP to allow agent control of tv streaming content from multiple providers.
 * **Tech Stack:** Python, FastAPI
 
 **9. Logging Services (Optional)**
+
 * **Summary:** Provides centralized log aggregation and dashboard visualization for the application suite.
 * **Tech Stack:** Grafana and Loki (using the Loki Docker driver).
 
@@ -94,9 +104,10 @@ Docker named volumes (`model_cache`, `ollama_models`) are used to persist AI mod
 on container restarts.
 
 ## Prerequisites
+
 This project requires Linux or WSL2 environment, and has been tested on Ubuntu 22.04 and 24.04.
 Support for macOS is in progress.
-The web application can be run in any browser with connectivity to the host machine, ans has been tested with 
+The web application can be run in any browser with connectivity to the host machine, ans has been tested with
 chrome on Windows and safari on an iPhone.
 
 Before you begin, ensure you have the following installed:
@@ -113,62 +124,63 @@ Before you begin, ensure you have the following installed:
 ## Setup
 
 1. **Clone the Repository**:
-Max is super-repo with multiple sub-repos for the services to enable flexible future development and testing.
+   Max is super-repo with multiple sub-repos for the services to enable flexible future development and testing.
+
    ```bash
    git clone --recurse-submodules https://github.com/rbegg/max.git
    ```
 
-   If you already cloned the repo, without the `--recurse-submodules` flag, then: 
+   If you already cloned the repo, without the `--recurse-submodules` flag, then:
+
    ```bash
    cd max
    git submodule update --init --recursive
    ```
-
-2. **Configure Environment**: 
+2. **Configure Environment**:
 
    The project uses `.env` files for configuration. Start by copying the template file for both development and
-   to test the production environment. <mark> Live production should never use a file but use ENV Variables managed 
-   in the host system</mark>
+   to test the production environment. <mark> Live production should never use a file but use ENV Variables managedin the host system</mark>
 
-    ```bash
-    cp .env.template .env
-    cp .env.template .env.dev
-    ```
-    Next, review the variables in `.env` and `.env.dev` and customize them as needed (e.g., ports, model configurations).
+   ```bash
+   cp .env.template .env
+   cp .env.template .env.dev
+   ```
 
+   Next, review the variables in `.env` and `.env.dev` and customize them as needed (e.g., ports, model configurations).
 3. **Run the Setup Script**:
 
-   This script creates the necessary external Docker volumes (`model_cache` and `ollama_models`) for persisting model 
-   data and the shared ai-network.  
+   This script creates the necessary external Docker volumes (`model_cache` and `ollama_models`) for persisting model
+   data and the shared ai-network.
+
    ```bash
    bash scripts/setup.sh <server-name>
    ```
 4. **Run the proxy setup script**:
- 
-   This script will generate SLL Certificates for development and test usage, execute from the `max/proxy/` directory.  
-   The server-name (hostname of the server running max) must be passed as a parameter or be defined as an 
+
+   This script will generate SLL Certificates for development and test usage, execute from the `max/proxy/` directory.The server-name (hostname of the server running max) must be passed as a parameter or be defined as an
    environment variable `SERVER_NAME`.
+
    ```bash
    cd proxy
    sudo bash scripts/setup.sh <server-name>
    cd ..
    ```
 5. **Run the max-assistant setup script**:
- 
+
    This script will load the sample data from max/services/max-assistant/csv_data
-   and optionally authenticate the gmail client.
-   The scripts are dependent on ```env.local``` that must be located in the max-assistant directory.
-   The file can be created by copying the env.template file in the max-assistant directory and renaming it to env.local.
-   The values can be copied from the .env file in the max root directory.
- 
+   and authenticate the gmail client.
+   The scripts are dependent on ``env.local`` located in the max-assistant directory.
+
    > **TODO**: cleanup use of .env files.
+   >
 
    To run the script:
+
    ```bash
    cd services/max-assistant
    bash scripts/setup.sh
    cd ..
-   ```   
+   ```
 
 ## Configuration
 
@@ -187,7 +199,9 @@ For production, you **must** update the server name in your `.env` file:
    PROD_SERVER_NAME=your-actual-domain.com
    ```
 3. Ensure your SSL certificates are correctly mounted in `docker-compose.prod.yaml`.
+
 ### GPU vs. CPU
+
 By default, a system with nvida CUDA support is assumed.
 
 To switch the `stt` service to run on CPU:
@@ -207,6 +221,7 @@ To switch the `stt` service to run on CPU:
 ### Optional Logging Services
 
 If the env variable LOG is set, Grafana and Loki will be started to provide logging services.
+
 ```bash
     export LOG=1
 ```
@@ -218,13 +233,15 @@ To start all services in development mode with hot-reloading enabled for the cus
 ```bash
 make dev
 ```
+
 If any dependencies change (any changes outside a services /src tree):
+
 ```bash
 make dev-build
 ```
 
-- The NGINX proxy service will be avail from your browser via  http  `http://localhost:8080` and https 
-  `https://localhost:8443` if the default ports are not in use.  Browsers will only allow microphone access over 
+- The NGINX proxy service will be avail from your browser via  http  `http://localhost:8080` and https
+  `https://localhost:8443` if the default ports are not in use.  Browsers will only allow microphone access over
   http to localhost.  When using a hostname, you must use https.
 
 To stop and remove the development containers:
@@ -240,13 +257,15 @@ To build and run the services in detached production like mode:
 ```bash
 make prod
 ```
+
 If any dependencies change (any changes outside a services /src tree):
+
 ```bash
 make prod-build
 ```
 
 - The NGINX proxy will redirect HTTP (port 80) to HTTPS (port 443).
-- Either localhost or the configured domain name can be used to access the web interface.  
+- Either localhost or the configured domain name can be used to access the web interface.
 - Ensure you have configured your DNS and SSL certificates correctly in `docker-compose.prod.yaml` and
   `./proxy/nginx/prod.conf.template`.
 
@@ -257,19 +276,21 @@ make prod-down
 ```
 
 To bring the services down and clear the build caches:
+
 ```bash
 make clean
 ```
 
 ### Client (Browser) access
-Once the application is running, you can access the web interface at either the server-name or localhost and port you 
+
+Once the application is running, you can access the web interface at either the server-name or localhost and port you
 configured.
 
 For example if PROXY_HTTPS_PORT=9443:
+
 ```
 https://127.0.0.1:9443
 ```
-
 
 ## NVIDA GPU Support
 
@@ -307,7 +328,6 @@ container:
 
 ```bash
 docker run --gpus all nvidia/cuda:12.3.2-cudnn9-devel-ubuntu22.04 nvidia-smi
-
 ```
 
 master-project/
@@ -338,4 +358,5 @@ master-project/
 ├── docker-compose.prod.yaml   <-- Overrides for production
 └── Makefile                   <-- A master Makefile to control the whole system
 
+```
 ```
