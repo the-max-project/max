@@ -7,7 +7,7 @@ This agent aims to maximize their quality of life by encouraging and supporting 
 and helping to make technology more accessible.
 
 The project is designed to be run on local HW and configured/managed by a trusted family member or caregiver.
-A key goal is to allow the family member to spend more time visiting as family and less time with day-to-day navigation.
+A key goal is to allow family members to spend more time visiting as family and less time with day-to-day navigation.
 
 ## Key Features
 
