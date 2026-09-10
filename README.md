@@ -153,6 +153,13 @@ Max is super-repo with multiple sub-repos for the services to enable flexible fu
    sudo bash scripts/setup.sh <server-name>
    cd ..
    ```
+   
+    Alternatively,
+    if you are using tailscale, run the following command in either windows for WSL or linux (where tailscale is installed):
+    ```powershell
+    tailscale cert your-machine-name.your-tailnet.ts.net
+    ```
+   then copy the files to ```max/proxy/certs/```
 5. **Run the max-assistant setup script**:
  
    This script will load the sample data from max/services/max-assistant/csv_data

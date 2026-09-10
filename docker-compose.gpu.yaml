@@ -1,5 +1,7 @@
 # docker-compose.gpu.yaml
-# included for builds targeting Nvidia GPUs
+# Override file that adds NVIDIA GPU reservations.
+# Append with: -f docker-compose.gpu.yaml
+
 services:
   stt:
     deploy:
@@ -10,3 +12,11 @@ services:
               count: 1
               capabilities: [gpu]
 
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

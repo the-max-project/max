@@ -1,113 +1,24 @@
-name: ${COMPOSE_PROJECT_NAME:-max-dev}
+# docker-compose.dev.yaml
+# Dev-only overrides: bind mounts, live reload commands
+
 services:
-  # -------------------------------------------------------------------------------------
-  # web-server SERVICE
-  # -------------------------------------------------------------------------------------
-#  web-server:
-#    image: web-server-dev
-#    build:
-#      target: dev
-#      # Context & Dockerfile is set to services/web-server in docker-compose.yaml
-#    volumes:
-#      # Bind-mount source code for live-reloading
-#      - ./services/web-server/src:/app/src
-#      - ./services/web-server/static:/app/static
-#      - ./services/web-server/requirements.txt:/app/requirements.txt
-#      # Use a named volume for node_modules for performance
-#      - node_modules:/app/node_modules
-#    # command: ["python3", "src/main.py"] # Command to run the dev server
-#    command: ["python", "-m", "uvicorn", "src.main:app","--reload", "--log-level", "${WEB_LOG_LEVEL:-info}"]
-
-  # -------------------------------------------------------------------------------------
-  # stt SERVICE
-  # -------------------------------------------------------------------------------------
   stt:
-    image: stt-dev
-    build:
-      target: dev
-      # Context & Dockerfile is set to services/max-stt in docker-compose.yaml
     volumes:
-      # Bind-Mount local directories into the container for live code changes.
       - ./services/max-stt:/app
-      #- ./tests:/app/tests
-      #- ./data:/app/data
-    # This keeps the container running so IDE can attach
-    # command: sleep infinity
-    command: ["python", "-m", "uvicorn", "src.app:app","--reload","--log-level", "${STT_LOG_LEVEL:-info}"]
+    command: python -m uvicorn src.app:app --reload --log-level ${STT_LOG_LEVEL:-info}
 
-  # -------------------------------------------------------------------------------------
-  # TTS SERVICE - Text To Speach
-  # -------------------------------------------------------------------------------------
-  tts:
-    image: tts-dev
-    build:
-      target: dev
-
-  # -------------------------------------------------------------------------------------
-  # ASSISTANT SERVICE
-  # -------------------------------------------------------------------------------------
   assistant:
-    image: assistant-dev
-    build:
-      target: dev
-      # Context & Dockerfile is set to services/max-assistant in docker-compose.yaml
     volumes:
-      # Bind-Mount local directories into the container for live code changes.
       - ./services/max-assistant:/app
-    command:  >
-      sh -c "pip install -e . && 
-             python -m uvicorn max_assistant.main:app --reload-dir /app/src --reload-exclude '*__pycache__*' --log-config log_config.json --log-level ${ASSISTANT_LOG_LEVEL:-info} --host 0.0.0.0  --port 80"
+    command: >
+      sh -c "pip install -e . &&
+             python -m uvicorn max_assistant.main:app
+             --reload-dir /app/src
+             --reload-exclude '*__pycache__*'
+             --log-config log_config.json
+             --host 0.0.0.0 --port 80"
 
-  # -------------------------------------------------------------------------------------
-  # ollama SERVICE
-  # -------------------------------------------------------------------------------------
-
-    # Same container in Dev & Prod
-
-  # -------------------------------------------------------------------------------------
-  # proxy SERVICE
-  # -------------------------------------------------------------------------------------
-
-  # New service to build and tag the base Node environment for IDE
-  proxy-base:
-    image: proxy-dev-base
-    build:
-      context: ./proxy
-      dockerfile: Dockerfile
-      target: base  # This specifically builds up to the Node.js stage
-
- # actual proxy service
   proxy:
-    image: proxy-dev
-    build:
-      target: dev
-    ports:
-      - "${PROXY_HTTP_PORT:-8080}:8080"
-      - "${PROXY_HTTPS_PORT:-8443}:8443"
     volumes:
-       # mount a replacement nginx.cong to set workers to 1
-      - ./proxy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      # Mount the template
-      - ./proxy/nginx/conf.template:/etc/nginx/templates/default.conf.template:ro
-      - ./proxy/certs:/etc/nginx/certs:ro
       - ./proxy:/proxy
       - node_modules:/proxy/node_modules
-
-  # -------------------------------------------------------------------------------------
-  # node4j Database SERVICE
-  # -------------------------------------------------------------------------------------
-  neo4j:
-    volumes:
-    # Override volume for dev
-      - neo4j_data_dev:/data
-
-  # -------------------------------------------------------------------------------------
-  # VOLUMES
-  # -------------------------------------------------------------------------------------
-# Define the named volume for the virtual environment
-volumes:
-  venv:
-  # Define the named volume for node modules
-  node_modules:
-  neo4j_data_dev:
-    external: true

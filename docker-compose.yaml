@@ -1,171 +1,222 @@
-    # master-project/docker-compose.yaml
+# Unified Docker Compose
+# Profiles: shared (Ollama), logging (Loki+Grafana)
+# Dev vs Prod controlled by COMPOSE_TARGET env var in .env files
+# GPU support via separate docker-compose.gpu.yaml override
 
-    services:
+name: ${COMPOSE_PROJECT_NAME:-max-dev}
 
-      # -------------------------------------------------------------------------------------
-      # STT SERVICE - speach to text
-      # -------------------------------------------------------------------------------------
-      stt:
-        build:
-          context: ./services/max-stt  # Points to the app's directory
-          dockerfile: Dockerfile
-          # Target is set in override files
-          args:
-            - PYTHON_VERSION=3.11
-            - BASE_IMAGE=${STT_BASE_IMAGE}
-        #container_name: max-stt
-        # image: image name set in override files
-        # No ports exposed here in production!
-        environment:
-          # ... environment variables ...
-          - APP_NAME=stt
-          - MODEL_SIZE=${STT_MODEL_SIZE:-large-v3}
-          - DEVICE=${STT_DEVICE:-cuda}
-          - COMPUTE_TYPE=${STT_COMPUTE_TYPE:-float16}
-        user: appuser
-        volumes:
-          - model_cache:/home/appuser/.cache
-          # ... other volumes ...
-          # --- GPU / CPU Configuration ---
-          # To switch to CPU, comment out the 'deploy' section below and
-          # set DEVICE=cpu and COMPUTE_TYPE=int8 in the environment variables.
-        healthcheck:
-          # This command now calls your new API endpoint
-          test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
-          interval: 60s
-          timeout: 15s
-          retries: 3
-          start_period: 60s
-#        deploy:
-#          resources:
-#            reservations:
-#              devices:
-#                - driver: nvidia
-#                  count: 1
-#                  capabilities: [gpu]
-
-      # -------------------------------------------------------------------------------------
-      # TTS SERVICE - Text To Speach
-      # -------------------------------------------------------------------------------------
-      tts:
-        build:
-          context: ./services/max-tts  # Points to the app's directory
-          dockerfile: Dockerfile
-        command: --voice ${TTS_VOICE:-en_US-lessac-medium}
-        volumes:
-          - stt_models:/config
-        expose:
-          - 10200
-        healthcheck:
-          test: [ "CMD", "nc", "-z", "localhost", "10200" ]
-          interval: 60s
-          timeout: 10s
-          retries: 3
-          start_period: 60s
-
-
-      # -------------------------------------------------------------------------------------
-      # ASSISTANT SERVICE
-      # -------------------------------------------------------------------------------------
-      assistant:
-        build:
-          context: ./services/max-assistant
-          dockerfile: Dockerfile
-          # Target is set in override files
-          args:
-            - PYTHON_VERSION=3.11
-        networks:
-          - ai-shared-network
-          - default
-        environment:
-          - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
-          - OLLAMA_MODEL_NAME=${OLLAMA_MODEL_NAME:-llama3}
-          - TTS_VOICE=${TTS_VOICE:-en_US-lessac-medium}
-          - LOG_LEVEL=${ASSISTANT_LOG_LEVEL:-INFO}
-          - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
-          - NEO4J_USER=${NEO4J_USER}
-          - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-          - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-          - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-          - GOOGLE_SENDER_EMAIL=${GOOGLE_SENDER_EMAIL}
-        user: appuser
-        healthcheck:
-          # This command now calls your new API endpoint
-          test: [ "CMD", "curl", "-f", "http://localhost:80/health" ]
-          interval: 60s
-          timeout: 15s
-          retries: 3
-          start_period: 60s
-        depends_on:
-          - stt
-          - tts
-          # Ollama moved to shared ser
-          # - ollama
-          - neo4j
-        volumes:
-          - "/etc/localtime:/etc/localtime:ro"
-
-
-      # -------------------------------------------------------------------------------------
-      # proxy SERVICE
-      # -------------------------------------------------------------------------------------
-      proxy:
-        build:
-          context: ./proxy
-          dockerfile: Dockerfile
-        # Port mapping and volumes will be defined in dev/prod override files
-        depends_on:
-          - stt
-          - assistant
-        environment:
-          # Define the variables used in the proxy/nginx/*.conf.template files to gen nginx config
-          # values read from the .env file will override the defaults here
-          - SERVER_NAME=${SERVER_NAME} # <-- IMPORTANT: Change this in your .env file
-          - PROXY_HTTP_PORT=${PROXY_HTTP_PORT:-80}
-          - PROXY_HTTPS_PORT=${PROXY_HTTPS_PORT:-443}
-          - PROXY_WORK_PROCESSES=${PROXY_WORK_PROCESSES:-auto}
-          - ASSISTANT_HOST=${ASSISTANT_HOST:-assistant}
-          - SSL_CERTIFICATE_PATH= ${SSL_CERTIFICATE_PATH}
-          - SSL_CERTIFICATE_KEY_PATH= ${SSL_CERTIFICATE_KEY_PATH}
-        healthcheck:
-          # This command checks if Nginx is responding with a success code
-          test: ["CMD-SHELL", "curl -f http://localhost:$${PROXY_HTTP_PORT:-80}"]
-          interval: 30s
-          timeout: 10s
-          retries: 3
-          start_period: 10s
-
-      # -------------------------------------------------------------------------------------
-      # node4j Database SERVICE
-      # -------------------------------------------------------------------------------------
-      neo4j:
-        image: neo4j:latest
-        ports:
-          - "${NEO4J_HTTP_PORT:-7474}:7474"
-          - "${NEO4J_BOLT_PORT:-7687}:7687"
-        environment:
-          - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD} # Set username/password
-          - NEO4J_PLUGINS=["apoc"] # Optional: include useful plugins
-          - NEO4J_db_query_default__language=CYPHER_25
-        volumes:
-          - neo4j_data:/data # Persist database data
-        healthcheck:
-          test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1" ]
-          interval: 5s
-          timeout: 10s
-          retries: 3
-          start_period: 10s
-
+services:
+  # -------------------------------------------------------------------------------------
+  # STT SERVICE - speech to text
+  # -------------------------------------------------------------------------------------
+  stt:
+    build:
+      context: ./services/max-stt
+      dockerfile: Dockerfile
+      target: ${COMPOSE_TARGET:-dev}
+      args:
+        - PYTHON_VERSION=3.11
+        - BASE_IMAGE=${STT_BASE_IMAGE}
+    image: stt-${COMPOSE_TARGET:-dev}
+    environment:
+      - APP_NAME=stt
+      - MODEL_SIZE=${STT_MODEL_SIZE:-large-v3}
+      - DEVICE=${STT_DEVICE:-cuda}
+      - COMPUTE_TYPE=${STT_COMPUTE_TYPE:-float16}
+    user: appuser
     volumes:
-      model_cache:
-        external: true
-      ollama_models:
-        external: true
-      stt_models:
-        external: true
-      neo4j_data:
-        external: true
+      - model_cache:/home/appuser/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
 
+  # -------------------------------------------------------------------------------------
+  # TTS SERVICE - Text To Speech
+  # -------------------------------------------------------------------------------------
+  tts:
+    build:
+      context: ./services/max-tts
+      dockerfile: Dockerfile
+      target: ${COMPOSE_TARGET:-dev}
+    image: tts-${COMPOSE_TARGET:-dev}
+    command: --voice ${TTS_VOICE:-en_US-lessac-medium}
+    volumes:
+      - stt_models:/config
+    expose:
+      - 10200
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "10200"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # -------------------------------------------------------------------------------------
+  # ASSISTANT SERVICE
+  # -------------------------------------------------------------------------------------
+  assistant:
+    build:
+      context: ./services/max-assistant
+      dockerfile: Dockerfile
+      target: ${COMPOSE_TARGET:-dev}
+      args:
+        - PYTHON_VERSION=3.11
+    image: assistant-${COMPOSE_TARGET:-dev}
     networks:
-      ai-shared-network:
-        external: true          # Tells Docker this network already exists
+      - ai-shared-network
+      - default
+    environment:
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
+      - OLLAMA_MODEL_NAME=${OLLAMA_MODEL_NAME:-llama3}
+      - TTS_VOICE=${TTS_VOICE:-en_US-lessac-medium}
+      - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_SENDER_EMAIL=${GOOGLE_SENDER_EMAIL}
+    user: appuser
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    depends_on:
+      - stt
+      - tts
+      # ollama and neo4j are shared profiles, so they can be launched separately in dev mode
+      # the makefile will ensure they are launched in both dev and prod mode
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+
+  # -------------------------------------------------------------------------------------
+  # PROXY SERVICE
+  # -------------------------------------------------------------------------------------
+  proxy:
+    build:
+      context: ./proxy
+      dockerfile: Dockerfile
+      target: ${COMPOSE_TARGET:-dev}
+    image: proxy-${COMPOSE_TARGET:-dev}
+    depends_on:
+      - stt
+      - assistant
+    ports:
+      - "${PROXY_HTTP_PORT:-8080}:${PROXY_HTTP_PORT:-8080}"
+      - "${PROXY_HTTPS_PORT:-8443}:${PROXY_HTTPS_PORT:-8443}"
+    environment:
+      - SERVER_NAME=${SERVER_NAME}
+      - PROXY_HTTP_PORT=${PROXY_HTTP_PORT:-8080}
+      - PROXY_HTTPS_PORT=${PROXY_HTTPS_PORT:-8443}
+      - PROXY_WORK_PROCESSES=${PROXY_WORK_PROCESSES:-auto}
+      - ASSISTANT_HOST=${ASSISTANT_HOST:-assistant}
+      - SSL_CERTIFICATE_PATH=${SSL_CERTIFICATE_PATH}
+      - SSL_CERTIFICATE_KEY_PATH=${SSL_CERTIFICATE_KEY_PATH}
+    volumes:
+      - ./proxy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./proxy/nginx/conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./proxy/certs:/etc/nginx/certs:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:${PROXY_HTTP_PORT:-8080}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # -------------------------------------------------------------------------------------
+  # NEO4J Database SERVICE
+  # -------------------------------------------------------------------------------------
+  neo4j:
+    container_name: neo4j-${COMPOSE_TARGET:-dev}
+    image: neo4j:latest
+    profiles: [shared]
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_db_query_default__language=CYPHER_25
+    volumes:
+      - ${NEO4J_VOLUME:-neo4j_data_dev}:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 5s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # -------------------------------------------------------------------------------------
+  # OLLAMA SERVICE (shared profile - launched separately)
+  # -------------------------------------------------------------------------------------
+  ollama:
+    container_name: ollama-${COMPOSE_TARGET:-dev}
+    profiles: [shared]
+    build:
+      context: ./services/ollama
+      dockerfile: Dockerfile
+    image: ollama-gpu
+    networks:
+      - ai-shared-network
+    restart: unless-stopped
+    user: "1000:1000"
+    environment:
+      - OLLAMA_KEEP_ALIVE=-1
+      - OLLAMA_CONTEXT_LENGTH=${OLLAMA_CONTEXT_LENGTH:-65536}
+      - DEBUG=${OLLAMA_DEBUG:-0}
+    ports:
+      - "127.0.0.1:11434:11434"
+    volumes:
+      - ollama_models:/home/ollama/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434"]
+      interval: 120s
+      timeout: 15s
+      retries: 3
+      start_period: 240s
+
+  # -------------------------------------------------------------------------------------
+  # LOGGING PROFILE - Loki + Grafana (additive)
+  # -------------------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:latest
+    profiles: [logging]
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    profiles: [logging]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    depends_on:
+      - loki
+
+volumes:
+  model_cache:
+    external: true
+  ollama_models:
+    external: true
+  stt_models:
+    external: true
+  neo4j_data_dev:
+    external: true
+  neo4j_data:
+    external: true
+  loki-data:
+    external: true
+  node_modules:
+
+networks:
+  ai-shared-network:
+    external: true

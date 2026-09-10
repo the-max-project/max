@@ -1,78 +1,76 @@
-
-# Define a YAML "extension field" (starts with x-) to hold the anchor.
-# This template contains the logging config all services will share.
-x-loki-logging: &loki-config
-  logging:
-    driver: loki
-    options:
-      loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
-      loki-batch-size: "400"
-      mode: "non-blocking"
-      loki-external-labels: "version=${APP_VERSION:-latest}"
-  depends_on:
-    - loki
-
+# docker-compose.logging.yaml
+# Override file that adds Loki logging driver to all services.
+# Uses explicit per-service definitions (no deprecated YAML merge keys).
 
 services:
-  # -------------------------------------------------------------------------------------
-  # web-server SERVICE
-  # -------------------------------------------------------------------------------------
-  web-server:
-    <<: *loki-config  # This merges in the logging: and depends_on: keys
-
-  # -------------------------------------------------------------------------------------
-  # stt SERVICE
-  # -------------------------------------------------------------------------------------
   stt:
-    <<: *loki-config
-
-  # -------------------------------------------------------------------------------------
-  # TTS SERVICE - Text To Speach
-  # -------------------------------------------------------------------------------------
-  tts:
-    <<: *loki-config
-
-  # -------------------------------------------------------------------------------------
-  # ASSISTANT SERVICE
-  # -------------------------------------------------------------------------------------
-  assistant:
-    <<: *loki-config
-
-  # -------------------------------------------------------------------------------------
-  # ollama SERVICE
-  # -------------------------------------------------------------------------------------
-  ollama:
-    <<: *loki-config
-
-  # -------------------------------------------------------------------------------------
-  # proxy SERVICE
-  # -------------------------------------------------------------------------------------
-  proxy:
-    <<: *loki-config
-
-  # -------------------------------------------------------------------------------------
-  # node4j Database SERVICE
-  # -------------------------------------------------------------------------------------
-  neo4j:
-    <<: *loki-config
-
-  loki:
-    image: grafana/loki:latest
-    ports:
-      - "3100:3100"
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - loki-data:/loki
-
-  grafana:
-    image: grafana/grafana-oss:latest
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./loki-config.yaml:/etc/loki/local-config.yaml
-      - ./grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
     depends_on:
-      - loki
+      loki:
+        condition: service_started
 
-volumes:
-  loki-data:
+  tts:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
+    depends_on:
+      loki:
+        condition: service_started
+
+  assistant:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
+    depends_on:
+      loki:
+        condition: service_started
+
+  ollama:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
+    depends_on:
+      loki:
+        condition: service_started
+
+  proxy:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
+    depends_on:
+      loki:
+        condition: service_started
+
+  neo4j:
+    logging:
+      driver: loki
+      options:
+        loki-url: "http://127.0.0.1:3100/loki/api/v1/push"
+        loki-batch-size: "400"
+        mode: "non-blocking"
+        loki-external-labels: "version=${APP_VERSION:-latest}"
+    depends_on:
+      loki:
+        condition: service_started
