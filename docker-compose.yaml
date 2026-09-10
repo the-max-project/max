@@ -23,6 +23,8 @@ services:
       - MODEL_SIZE=${STT_MODEL_SIZE:-large-v3}
       - DEVICE=${STT_DEVICE:-cuda}
       - COMPUTE_TYPE=${STT_COMPUTE_TYPE:-float16}
+      - STT_CPU_THREADS=${STT_CPU_THREADS:-2}
+      - STT_NUM_WORKERS=${STT_NUM_WORKERS:-1}
     user: appuser
     volumes:
       - model_cache:/home/appuser/.cache
@@ -71,6 +73,7 @@ services:
     environment:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://ollama:11434}
       - OLLAMA_MODEL_NAME=${OLLAMA_MODEL_NAME:-llama3}
+      - STT_WEBSOCKET_URL=${STT_WEBSOCKET_URL:-ws://stt/ws}
       - TTS_VOICE=${TTS_VOICE:-en_US-lessac-medium}
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER}
@@ -86,7 +89,7 @@ services:
       retries: 3
       start_period: 60s
     depends_on:
-      - stt
+      # stt is run locally on macOS, dependency is managed by makefile
       - tts
       # ollama and neo4j are shared profiles, so they can be launched separately in dev mode
       # the makefile will ensure they are launched in both dev and prod mode
@@ -103,7 +106,7 @@ services:
       target: ${COMPOSE_TARGET:-dev}
     image: proxy-${COMPOSE_TARGET:-dev}
     depends_on:
-      - stt
+      # stt is run locally on macOS, dependency is managed by makefile
       - assistant
     ports:
       - "${PROXY_HTTP_PORT:-8080}:${PROXY_HTTP_PORT:-8080}"
@@ -131,7 +134,7 @@ services:
   # NEO4J Database SERVICE
   # -------------------------------------------------------------------------------------
   neo4j:
-    container_name: neo4j-${COMPOSE_TARGET:-dev}
+    container_name: neo4j
     image: neo4j:latest
     profiles: [shared]
     ports:
