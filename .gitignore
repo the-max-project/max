@@ -9,3 +9,6 @@ node_modules/
 *:Zone.Identifier
 digest.txt
 __pycache__/
+.DS_Store
+.env.old
+.env.dev.old
