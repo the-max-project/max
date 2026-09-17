@@ -45,7 +45,7 @@ endif
 stt:
 ifeq ($(IS_MACOS),true)
 	@echo "Opening native STT in a new Terminal window..."
-	@pgrep -f "services/max-stt" >/dev/null || osascript -e 'tell application "Terminal" to do script "cd $(CURDIR) && bash services/max-stt/scripts/run_native_macos.sh"'
+	@pgrep -f "uvicorn src.app:app" >/dev/null || osascript -e 'tell application "Terminal" to activate' -e 'tell application "Terminal" to do script "cd $(CURDIR) && bash services/max-stt/scripts/run_native_macos.sh"'
 else
 	$(DEV_COMPOSE) up -d stt
 endif
@@ -92,7 +92,7 @@ dev-down:
 	$(DEV_COMPOSE) down
 ifeq ($(IS_MACOS),true)
 	@echo "Terminating native development background processes..."
-	@-pkill -f "services/max-stt" 2>/dev/null || true
+	@-pkill -f "uvicorn src.app:app" 2>/dev/null || true
 endif
 
 
@@ -118,7 +118,7 @@ prod-macos:
 	@echo "Ensuring native macOS Ollama is active..."
 	@pgrep -x "ollama" >/dev/null || (ollama serve >/dev/null 2>&1 &)
 	@echo "Starting native macOS STT daemon..."
-	@pgrep -f "services/max-stt" >/dev/null || (nohup bash services/max-stt/scripts/run_native_macos.sh >/dev/null 2>&1 &)
+	@pgrep -f "uvicorn src.app:app" >/dev/null || (nohup bash services/max-stt/scripts/run_native_macos.sh >/dev/null 2>&1 &)
 	@echo "Starting persistent production database (Neo4j)..."
 	$(PROD_SHARED_COMPOSE) up -d --no-recreate neo4j
 	@echo "Starting production core services (TTS, Assistant, Proxy)..."
@@ -129,7 +129,7 @@ prod-macos-down:
 	$(PROD_MACOS_CORE) down
 	$(PROD_SHARED_COMPOSE) down
 	@echo "Stopping native background processes..."
-	@-pkill -f "services/max-stt" 2>/dev/null || true
+	@-pkill -f "uvicorn src.app:app" 2>/dev/null || true
 
 
 # ==============================================================================
@@ -157,7 +157,7 @@ clean:
 	$(PROD_COMPOSE) down -v
 	$(DEV_SHARED_COMPOSE) down -v
 ifeq ($(IS_MACOS),true)
-	@-pkill -f "services/max-stt" 2>/dev/null || true
+	@-pkill -f "uvicorn src.app:app" 2>/dev/null || true
 endif
 
 .PHONY: ollama neo4j stt tts assistant proxy \
