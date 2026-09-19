@@ -22,3 +22,7 @@ services:
     volumes:
       - ./proxy:/proxy
       - node_modules:/proxy/node_modules
+
+  ollama:
+    environment:
+      - OLLAMA_MAX_LOADED_MODELS=3
