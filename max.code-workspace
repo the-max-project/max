@@ -1,0 +1,9 @@
+{
+    "folders": [
+        { "name": "max (root)", "path": "." },
+        { "name": "max-assistant", "path": "services/max-assistant" },
+        { "name": "max-stt", "path": "services/max-stt" },
+        { "name": "max-tts", "path": "services/max-tts" }
+    ],
+    "settings": {}
+}

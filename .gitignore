@@ -12,3 +12,5 @@ __pycache__/
 .DS_Store
 .env.old
 .env.dev.old
+.vscode/launch.json
+.vscode/settings.json

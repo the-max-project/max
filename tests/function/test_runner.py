@@ -9,6 +9,15 @@ import numpy as np
 import ssl
 import time
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_CONFIG = os.path.join(SCRIPT_DIR, "basic.yaml")
+
+
+def resolve_path(path, base_dir):
+    """Resolve a path relative to base_dir (absolute paths and ~ are kept as-is)."""
+    path = os.path.expanduser(path)
+    return path if os.path.isabs(path) else os.path.normpath(os.path.join(base_dir, path))
+
 
 def get_audio_bytes(input_file):
     """
@@ -113,7 +122,7 @@ async def run_single_test(websocket, username, audio_file_path, expected_text, t
         return False
 
 
-async def run_all_tests(config_data):
+async def run_all_tests(config_data, base_dir=SCRIPT_DIR):
     global_config = config_data.get("config", {})
     ws_url = global_config.get("ws_url", "ws://localhost:8080/ws")
     username = global_config.get("username", "YamlBatchRunner")
@@ -155,7 +164,7 @@ async def run_all_tests(config_data):
                     print(f"\n⚠️ Skipping test {i}: Missing 'audio_file' or 'expected_text'")
                     continue
 
-                success = await run_single_test(websocket, username, audio_file, expected_text)
+                success = await run_single_test(websocket, username, resolve_path(audio_file, base_dir), expected_text)
                 if success:
                     passed_count += 1
 
@@ -167,21 +176,25 @@ async def run_all_tests(config_data):
 
 def main():
     parser = argparse.ArgumentParser(description="Run batch WebSocket audio tests from a YAML configuration.")
-    parser.add_argument("config", help="Path to the YAML test configuration file.")
+    parser.add_argument("config", nargs="?", default=DEFAULT_CONFIG,
+                        help="Path to the YAML test configuration file (default: basic.yaml next to this script). "
+                             "Audio paths in the YAML are resolved relative to the YAML file's directory.")
     args = parser.parse_args()
 
+    config_path = os.path.abspath(os.path.expanduser(args.config))
+
     try:
-        with open(args.config, 'r') as file:
+        with open(config_path, 'r') as file:
             config_data = yaml.safe_load(file)
     except FileNotFoundError:
-        print(f"❌ Error: Configuration file '{args.config}' not found.")
+        print(f"❌ Error: Configuration file '{config_path}' not found.")
         return
     except yaml.YAMLError as e:
         print(f"❌ Error parsing YAML file: {e}")
         return
 
     # Execute the async event loop
-    asyncio.run(run_all_tests(config_data))
+    asyncio.run(run_all_tests(config_data, os.path.dirname(config_path)))
 
 
 if __name__ == "__main__":
