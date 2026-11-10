@@ -62,16 +62,18 @@ proxy:
 neo4j:
 	$(DEV_SHARED_COMPOSE) up -d --no-recreate neo4j
 
+mosquitto:
+	$(DEV_SHARED_COMPOSE) up -d mosquitto
 
 # ==============================================================================
 # DEVELOPMENT WORKFLOWS
 # ==============================================================================
 
 ## Pre-boot shared/persistent containers (Ollama + Neo4j)
-shared: ollama neo4j
+shared: ollama neo4j mosquitto
 
 shared-build:
-	$(DEV_SHARED_COMPOSE) up --build --detach ollama neo4j
+	$(DEV_SHARED_COMPOSE) up --build --detach ollama neo4j mosquitto
 
 shared-down:
 	$(DEV_SHARED_COMPOSE) down

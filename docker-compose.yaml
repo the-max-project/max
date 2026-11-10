@@ -186,6 +186,23 @@ services:
       start_period: 240s
 
   # -------------------------------------------------------------------------------------
+  # MOSQUITTO SERVICE (shared profile - launched separately)
+  # -------------------------------------------------------------------------------------
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    profiles: [shared]
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      # Expose to host/LAN so smart devices (Zigbee2MQTT, ESPHome) can connect
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./services/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  # -------------------------------------------------------------------------------------
   # LOGGING PROFILE - Loki + Grafana (additive)
   # -------------------------------------------------------------------------------------
   loki:
@@ -222,6 +239,8 @@ volumes:
   loki-data:
     external: true
   node_modules:
+  mosquitto_data:
+  mosquitto_log:
 
 networks:
   ai-shared-network:
